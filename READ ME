@@ -1,0 +1,176 @@
+# BioCatalyst Radar
+
+BioCatalyst Radar is a private biotech investment intelligence dashboard built in Streamlit.
+
+The tool tracks a curated watchlist of biotech and health-tech companies and scores them based on the quality of their investment case, upcoming catalysts, clinical/regulatory risk, and potential upside.
+
+It is designed to act like a lightweight biotech diligence tool — combining clinical development, regulatory, commercial, and financing logic into a simple investment score.
+
+This is not financial advice. It is a decision-support tool for identifying companies that may warrant deeper diligence.
+
+---
+
+## What the tool does
+
+BioCatalyst Radar helps answer:
+
+1. Is the company scientifically credible?
+2. Is there promising clinical or human data?
+3. Is there a meaningful upcoming value inflection point?
+4. Is the regulatory pathway realistic?
+5. Is the company differentiated versus competitors?
+6. Is the company funded through its next catalyst?
+7. Is the valuation attractive relative to the risk?
+8. Should the company be watched, avoided, or reviewed in more detail?
+
+---
+
+## Current features
+
+The current version includes:
+
+- Investment watchlist
+- Company-level deep dive
+- Pre-scored investment ratings
+- Analyst view for each company
+- Score breakdown by diligence factor
+- Scenario testing sliders
+- Draft investment memo
+- Downloadable memo output
+
+---
+
+## Files in this repository
+
+### `app.py`
+
+Main Streamlit application.
+
+It loads the watchlist and score data, calculates the investment score, assigns a rating, and displays the dashboard.
+
+### `requirements.txt`
+
+Lists the Python packages needed to run the app.
+
+Current packages:
+
+- streamlit
+- pandas
+- plotly
+- requests
+
+### `data/watchlist.csv`
+
+Core company watchlist.
+
+This file contains:
+
+- ticker
+- company name
+- category
+- therapeutic area
+- stage
+- asset or platform
+- next catalyst
+- catalyst timing
+- cash runway
+- high-level investment view
+
+### `data/scores.csv`
+
+Pre-scored investment assessment for each company.
+
+This file contains the scoring inputs used by the app.
+
+---
+
+## What the score measures
+
+Each company is scored across nine factors.
+
+| Factor | Weight | What it measures |
+|---|---:|---|
+| Biology / target validation | 15% | Whether the underlying science, mechanism, and disease biology are credible |
+| Clinical data quality | 20% | Strength, reproducibility, and relevance of available clinical or human data |
+| Catalyst quality | 15% | Whether the next event could materially change valuation |
+| Regulatory path | 10% | Clarity and plausibility of the FDA/EMA approval pathway |
+| Commercial opportunity | 10% | Market size, unmet need, pricing potential, and adoption |
+| Competitive differentiation | 10% | Whether the asset is meaningfully differentiated versus competitors |
+| Cash runway / dilution risk | 10% | Whether the company is funded through key catalysts or may need financing |
+| Management / BD validation | 5% | Quality of leadership, execution, partnerships, or pharma validation |
+| Valuation asymmetry | 5% | Whether upside appears attractive relative to downside risk |
+
+Each factor is scored from 0 to 5.
+
+The weighted score is converted into a score out of 100.
+
+---
+
+## Rating system
+
+| Score | Rating | Meaning |
+|---:|---|---|
+| 80+ | A — High-conviction watchlist | Strong investment case with credible data and meaningful catalysts |
+| 70–79 | B — Catalyst watch | Attractive setup, but some risks still need monitoring |
+| 60–69 | C — Speculative / volatile option | Interesting upside, but high uncertainty |
+| 45–59 | D — Avoid unless thesis improves | Not compelling yet; needs stronger evidence or better valuation |
+| <45 | E — Avoid | Weak or unattractive investment case |
+
+---
+
+## Current watchlist
+
+The first version includes companies such as:
+
+- Sana Biotechnology
+- MoonLake Immunotherapeutics
+- Nurix Therapeutics
+- Scholar Rock
+- Protagonist Therapeutics
+- Tempus AI
+- Mereo BioPharma
+- Parabilis Medicines
+
+These were selected to cover different biotech investment archetypes:
+
+- volatile early biotech
+- clinical catalyst companies
+- regulatory catalyst companies
+- pharma-validated platforms
+- late-stage biotech
+- health-tech / AI medicine
+- speculative rare disease optionality
+- new IPO watchlist names
+
+---
+
+## Intended use
+
+The tool is intended to help prioritize biotech investment research.
+
+It should be used to identify:
+
+- companies worth deeper diligence
+- upcoming value inflection points
+- companies with attractive but risky volatility
+- companies with financing or dilution risk
+- companies where the investment thesis is improving or weakening
+
+It should not be used as a standalone buy/sell recommendation tool.
+
+---
+
+## Future features
+
+Planned future upgrades include:
+
+- Catalyst calendar
+- SEC filing tracker
+- ClinicalTrials.gov integration
+- News and press release monitoring
+- Automated weekly biotech report
+- Email or Telegram alerts
+- AI-generated investment memos
+- Historical score tracking
+- Cash runway analysis
+- Valuation and market-cap tracking
