@@ -6,9 +6,6 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("BioCatalyst Radar")
-st.caption("Private biotech investment intelligence dashboard")
-
 # -----------------------------
 # Load data
 # -----------------------------
@@ -18,7 +15,7 @@ scores = pd.read_csv("data/scores.csv")
 df = watchlist.merge(scores, on="ticker", how="left")
 
 # -----------------------------
-# Score calculation
+# Scoring logic
 # -----------------------------
 def calculate_score(row):
     return round(
@@ -48,8 +45,28 @@ def get_rating(score):
         return "E — Avoid"
 
 
+def get_action(rating):
+    if rating.startswith("A"):
+        return "Prioritise for deep diligence"
+    elif rating.startswith("B"):
+        return "Track closely around catalyst"
+    elif rating.startswith("C"):
+        return "Keep on volatile watchlist"
+    elif rating.startswith("D"):
+        return "Do not prioritise yet"
+    else:
+        return "Avoid for now"
+
+
 df["investment_score"] = df.apply(calculate_score, axis=1)
 df["rating"] = df["investment_score"].apply(get_rating)
+df["suggested_action"] = df["rating"].apply(get_action)
+
+# -----------------------------
+# Header
+# -----------------------------
+st.title("BioCatalyst Radar")
+st.caption("Biotech and health-tech investment intelligence dashboard")
 
 # -----------------------------
 # Sidebar filters
@@ -82,12 +99,44 @@ if area_filter:
 if rating_filter:
     filtered = filtered[filtered["rating"].isin(rating_filter)]
 
+filtered = filtered.sort_values("investment_score", ascending=False)
+
 # -----------------------------
-# Top dashboard
+# Dashboard summary
+# -----------------------------
+st.subheader("Investment Dashboard")
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.metric("Companies tracked", len(filtered))
+
+with col2:
+    st.metric(
+        "Highest score",
+        f"{filtered['investment_score'].max()}/100"
+    )
+
+with col3:
+    top_company = filtered.iloc[0]["ticker"] if len(filtered) > 0 else "N/A"
+    st.metric("Top-ranked company", top_company)
+
+with col4:
+    priority_count = filtered[filtered["investment_score"] >= 70].shape[0]
+    st.metric("Priority watchlist", priority_count)
+
+st.divider()
+
+# -----------------------------
+# Top investment watchlist
 # -----------------------------
 st.subheader("Top Investment Watchlist")
 
-summary_cols = [
+st.caption(
+    "Ranked view of companies based on clinical quality, catalyst strength, regulatory path, cash runway, differentiation and valuation asymmetry."
+)
+
+watchlist_cols = [
     "ticker",
     "company",
     "category",
@@ -97,28 +146,51 @@ summary_cols = [
     "catalyst_timing",
     "investment_score",
     "rating",
+    "suggested_action",
     "analyst_view",
 ]
 
 st.dataframe(
-    filtered[summary_cols].sort_values("investment_score", ascending=False),
+    filtered[watchlist_cols],
     use_container_width=True,
-    hide_index=True
+    hide_index=True,
+    height=360
 )
+
+st.divider()
+
+# -----------------------------
+# Priority names
+# -----------------------------
+st.subheader("Priority Names to Review")
+
+priority_df = filtered[filtered["investment_score"] >= 70]
+
+if len(priority_df) > 0:
+    for _, row in priority_df.iterrows():
+        with st.expander(f"{row['ticker']} — {row['company']} | {row['rating']}"):
+            st.write(f"**Score:** {row['investment_score']}/100")
+            st.write(f"**Next catalyst:** {row['next_catalyst']} ({row['catalyst_timing']})")
+            st.write(f"**Suggested action:** {row['suggested_action']}")
+            st.warning(row["analyst_view"])
+else:
+    st.info("No companies currently score above 70.")
 
 st.divider()
 
 # -----------------------------
 # Company deep dive
 # -----------------------------
+st.subheader("Company Deep Dive")
+
 selected_company = st.selectbox(
-    "Select a company for deeper review",
+    "Select company",
     filtered["company"].tolist()
 )
 
 company = filtered[filtered["company"] == selected_company].iloc[0]
 
-st.subheader(f"{company['company']} ({company['ticker']})")
+st.write(f"## {company['company']} ({company['ticker']})")
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -132,35 +204,42 @@ with col3:
     st.metric("Stage", company["stage"])
 
 with col4:
-    st.metric("Next catalyst", company["catalyst_timing"])
+    st.metric("Catalyst timing", company["catalyst_timing"])
 
-st.write("## Company Snapshot")
+st.write("### Investment View")
+st.info(company["investment_view"])
 
-snap1, snap2, snap3 = st.columns(3)
+st.write("### Analyst View")
+st.warning(company["analyst_view"])
 
-with snap1:
+st.write("### Key Company Details")
+
+detail1, detail2, detail3 = st.columns(3)
+
+with detail1:
     st.write("**Category**")
     st.write(company["category"])
     st.write("**Therapeutic area**")
     st.write(company["therapeutic_area"])
 
-with snap2:
+with detail2:
     st.write("**Asset / platform**")
     st.write(company["asset"])
+    st.write("**Stage**")
+    st.write(company["stage"])
+
+with detail3:
     st.write("**Next catalyst**")
     st.write(company["next_catalyst"])
+    st.write("**Suggested action**")
+    st.write(company["suggested_action"])
 
-with snap3:
-    st.write("**Investment view**")
-    st.info(company["investment_view"])
-
-st.write("## Analyst View")
-st.warning(company["analyst_view"])
+st.divider()
 
 # -----------------------------
 # Score breakdown
 # -----------------------------
-st.write("## Score Breakdown")
+st.subheader("Score Breakdown")
 
 score_breakdown = pd.DataFrame(
     {
@@ -175,7 +254,7 @@ score_breakdown = pd.DataFrame(
             "Management / BD validation",
             "Valuation asymmetry",
         ],
-        "Score out of 5": [
+        "Raw score out of 5": [
             company["biology"],
             company["clinical_data"],
             company["catalyst"],
@@ -201,50 +280,38 @@ score_breakdown = pd.DataFrame(
 )
 
 score_breakdown["Weighted score"] = (
-    score_breakdown["Score out of 5"] / 5 * score_breakdown["Weight"]
+    score_breakdown["Raw score out of 5"] / 5 * score_breakdown["Weight"]
 ).round(1)
 
-st.dataframe(score_breakdown, use_container_width=True, hide_index=True)
-
-# -----------------------------
-# Manual scenario adjustment
-# -----------------------------
-st.write("## Scenario Test")
-
-st.caption("Adjust the assumptions below to see how the rating changes.")
-
-biology = st.slider("Biology / target validation", 0, 5, int(company["biology"]))
-clinical_data = st.slider("Clinical data quality", 0, 5, int(company["clinical_data"]))
-catalyst = st.slider("Catalyst quality", 0, 5, int(company["catalyst"]))
-regulatory = st.slider("Regulatory path", 0, 5, int(company["regulatory"]))
-commercial = st.slider("Commercial opportunity", 0, 5, int(company["commercial"]))
-competition = st.slider("Competitive differentiation", 0, 5, int(company["competition"]))
-cash_runway = st.slider("Cash runway / dilution risk", 0, 5, int(company["cash_runway"]))
-management_bd = st.slider("Management / BD validation", 0, 5, int(company["management_bd"]))
-valuation = st.slider("Valuation asymmetry", 0, 5, int(company["valuation"]))
-
-scenario_score = round(
-    biology * 3
-    + clinical_data * 4
-    + catalyst * 3
-    + regulatory * 2
-    + commercial * 2
-    + competition * 2
-    + cash_runway * 2
-    + management_bd * 1
-    + valuation * 1,
-    1,
+st.dataframe(
+    score_breakdown,
+    use_container_width=True,
+    hide_index=True
 )
 
-scenario_rating = get_rating(scenario_score)
+st.write("### Interpretation")
 
-st.metric("Scenario score", f"{scenario_score}/100")
-st.success(scenario_rating)
+lowest_factors = score_breakdown.sort_values("Weighted score").head(3)
+highest_factors = score_breakdown.sort_values("Weighted score", ascending=False).head(3)
+
+left, right = st.columns(2)
+
+with left:
+    st.write("**Strongest areas**")
+    for _, row in highest_factors.iterrows():
+        st.write(f"- {row['Factor']}: {row['Raw score out of 5']}/5")
+
+with right:
+    st.write("**Weakest areas / diligence focus**")
+    for _, row in lowest_factors.iterrows():
+        st.write(f"- {row['Factor']}: {row['Raw score out of 5']}/5")
+
+st.divider()
 
 # -----------------------------
 # Investment memo
 # -----------------------------
-st.write("## Draft Investment Memo")
+st.subheader("Draft Investment Memo")
 
 memo = f"""
 # {company['company']} ({company['ticker']}) — Investment Memo
@@ -255,28 +322,44 @@ memo = f"""
 ## Investment Score
 {company['investment_score']}/100
 
+## Suggested Action
+{company['suggested_action']}
+
 ## Company Overview
-- **Category:** {company['category']}
-- **Therapeutic area:** {company['therapeutic_area']}
-- **Lead asset/platform:** {company['asset']}
-- **Stage:** {company['stage']}
+- Category: {company['category']}
+- Therapeutic area: {company['therapeutic_area']}
+- Lead asset/platform: {company['asset']}
+- Stage: {company['stage']}
 
 ## Key Catalyst
-- **Catalyst:** {company['next_catalyst']}
-- **Timing:** {company['catalyst_timing']}
+- Catalyst: {company['next_catalyst']}
+- Timing: {company['catalyst_timing']}
 
-## Current Investment View
+## Investment View
 {company['investment_view']}
 
 ## Analyst View
 {company['analyst_view']}
 
-## Investment Thesis
-- Assess whether the biology is credible and clinically validated.
-- Determine whether existing human data are strong enough to support further upside.
-- Evaluate whether the next catalyst is meaningful enough to change valuation.
-- Check whether the company is funded through the next major catalyst.
-- Compare current valuation against realistic upside and downside cases.
+## Score Breakdown
+- Biology / target validation: {company['biology']}/5
+- Clinical data quality: {company['clinical_data']}/5
+- Catalyst quality: {company['catalyst']}/5
+- Regulatory path: {company['regulatory']}/5
+- Commercial opportunity: {company['commercial']}/5
+- Competitive differentiation: {company['competition']}/5
+- Cash runway / dilution risk: {company['cash_runway']}/5
+- Management / BD validation: {company['management_bd']}/5
+- Valuation asymmetry: {company['valuation']}/5
+
+## Diligence Questions
+- Is the biology and mechanism credible?
+- Is the available clinical data strong enough to justify investment risk?
+- Is the next catalyst meaningful enough to change valuation?
+- Is the company funded through the next catalyst?
+- Is the asset differentiated enough versus competitors?
+- Is the current valuation attractive relative to realistic upside?
+- What would break the investment thesis?
 
 ## Key Risks
 - Clinical efficacy risk
@@ -285,20 +368,6 @@ memo = f"""
 - Financing / dilution risk
 - Competitive differentiation risk
 - Commercial adoption risk
-
-## What Would Make This More Investable?
-- Stronger human efficacy data
-- Confirmed regulatory pathway
-- Financing overhang removed
-- Pharma partnership or external validation
-- Valuation pullback without thesis breaking
-
-## What Would Break the Thesis?
-- Failed or ambiguous clinical readout
-- Safety signal
-- Trial delay
-- Discounted financing before catalyst
-- Competitor data materially better
 """
 
 st.markdown(memo)
